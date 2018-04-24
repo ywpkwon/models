@@ -270,14 +270,34 @@ class ObjectDetectionEvaluator(DetectionEvaluator):
 
       2. per_category_ap: category specific results with keys of the form
         'PerformanceByCategory/mAP@<matching_iou_threshold>IOU/category'.
+
+      ** the variables "precisions_per_class, recalls_per_class, pr_value" below are
+         introduced by paulkwon, referring https://github.com/tensorflow/models/issues/3081/
+
     """
-    (per_class_ap, mean_ap, _, _, per_class_corloc, mean_corloc) = (
-        self._evaluation.evaluate())
+    (per_class_ap, mean_ap,
+     precisions_per_class_, recalls_per_class_,
+     per_class_corloc, mean_corloc) = (self._evaluation.evaluate())
+
     pascal_metrics = {
         self._metric_prefix +
         'Precision/mAP@{}IOU'.format(self._matching_iou_threshold):
             mean_ap
     }
+
+    # ------> added by paulkwon
+    pr_value = {}
+    existing_idxs = np.where(~np.isnan(per_class_ap))[0]
+    assert len(existing_idxs) == len(precisions_per_class_) == len(recalls_per_class_), \
+           "Number of instances mismatches."
+    precisions_per_class = [[0]] * len(per_class_ap)
+    recalls_per_class = [[0]] * len(per_class_ap)
+    # <------ added by paulkwon
+
+    for i, idx in enumerate(existing_idxs):
+      precisions_per_class[idx] = precisions_per_class_[i]
+      recalls_per_class[idx] = recalls_per_class_[i]
+
     if self._evaluate_corlocs:
       pascal_metrics[self._metric_prefix + 'Precision/meanCorLoc@{}IOU'.format(
           self._matching_iou_threshold)] = mean_corloc
@@ -289,6 +309,14 @@ class ObjectDetectionEvaluator(DetectionEvaluator):
                 self._matching_iou_threshold,
                 category_index[idx + self._label_id_offset]['name']))
         pascal_metrics[display_name] = per_class_ap[idx]
+
+        # PR curve ------> added by paulkwon
+        if idx in existing_idxs:
+          display_name = (
+              'PR_curve@{}'.format(category_index[idx + self._label_id_offset]['name']))
+          pascal_metrics[display_name] = {'precisions': precisions_per_class[idx],
+                                          'recalls': recalls_per_class[idx]}
+        # <------ added by paulkwon
 
         # Optionally add CorLoc metrics.classes
         if self._evaluate_corlocs:
