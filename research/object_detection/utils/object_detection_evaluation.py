@@ -276,7 +276,7 @@ class ObjectDetectionEvaluator(DetectionEvaluator):
 
     """
     (per_class_ap, mean_ap,
-     precisions_per_class_, recalls_per_class_,
+     precisions_per_class, recalls_per_class,
      per_class_corloc, mean_corloc) = (self._evaluation.evaluate())
 
     pascal_metrics = {
@@ -286,17 +286,21 @@ class ObjectDetectionEvaluator(DetectionEvaluator):
     }
 
     # ------> added by paulkwon
-    pr_value = {}
-    existing_idxs = np.where(~np.isnan(per_class_ap))[0]
-    assert len(existing_idxs) == len(precisions_per_class_) == len(recalls_per_class_), \
-           "Number of instances mismatches."
-    precisions_per_class = [[0]] * len(per_class_ap)
-    recalls_per_class = [[0]] * len(per_class_ap)
+    # import pdb; pdb.set_trace()
+    # pr_value = {}
+    # if any(np.isnan(per_class_ap)):
+    #   raise rais
+    # existing_idxs = np.where(~np.isnan(per_class_ap))[0]
+    # assert len(existing_idxs) == len(precisions_per_class_) == len(recalls_per_class_), \
+           # "Number of instances mismatches."
+    # precisions_per_class = [[0]] * len(per_class_ap)
+    # recalls_per_class = [[0]] * len(per_class_ap)
+
+    # for i, idx in enumerate(existing_idxs):
+      # precisions_per_class[idx] = precisions_per_class_[i]
+      # recalls_per_class[idx] = recalls_per_class_[i]
     # <------ added by paulkwon
 
-    for i, idx in enumerate(existing_idxs):
-      precisions_per_class[idx] = precisions_per_class_[i]
-      recalls_per_class[idx] = recalls_per_class_[i]
 
     if self._evaluate_corlocs:
       pascal_metrics[self._metric_prefix + 'Precision/meanCorLoc@{}IOU'.format(
@@ -311,11 +315,13 @@ class ObjectDetectionEvaluator(DetectionEvaluator):
         pascal_metrics[display_name] = per_class_ap[idx]
 
         # PR curve ------> added by paulkwon
-        if idx in existing_idxs:
-          display_name = (
-              'PR_curve@{}'.format(category_index[idx + self._label_id_offset]['name']))
-          pascal_metrics[display_name] = {'precisions': precisions_per_class[idx],
-                                          'recalls': recalls_per_class[idx]}
+        # if idx in existing_idxs:
+        display_name = (
+            'PRcurve@{}IOU/{}'.format(
+                self._matching_iou_threshold,
+                category_index[idx + self._label_id_offset]['name']))
+        pascal_metrics[display_name] = {'precisions': precisions_per_class[idx],
+                                        'recalls': recalls_per_class[idx]}
         # <------ added by paulkwon
 
         # Optionally add CorLoc metrics.classes
